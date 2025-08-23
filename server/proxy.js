@@ -14,6 +14,84 @@ app.use(bodyParser.json());
 let rpcCounter = 1; // auto-increment JSON-RPC IDs
 const intentParser = new IntentParser();
 
+// Internal function to make proxy calls without HTTP requests
+async function makeInternalProxyCall(url, action, toolName, args) {
+  if (!url) {
+    throw new Error("Missing MCP webhook URL");
+  }
+
+  // Build payload
+  let payload;
+  if (action === "listTools") {
+    payload = {
+      jsonrpc: "2.0",
+      id: String(rpcCounter++),
+      method: "tools/list",
+      params: {}
+    };
+  } else if (action === "callTool") {
+    if (!toolName) {
+      throw new Error("Missing toolName for callTool");
+    }
+    payload = {
+      jsonrpc: "2.0",
+      id: String(rpcCounter++),
+      method: "tools/call",
+      params: { name: toolName, arguments: args }
+    };
+  } else {
+    throw new Error("Invalid action");
+  }
+
+  console.log("➡️ Sent to MCP:", JSON.stringify(payload, null, 2));
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json, text/event-stream"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const text = await response.text();
+  console.log("⬅️ Received from MCP:", text);
+
+  let data;
+  try {
+    // Check if response is SSE format
+    if (text.startsWith('event:') || text.includes('data:')) {
+      console.log("🔄 Detected SSE format, parsing...");
+      const lines = text.split('\n');
+      let jsonData = null;
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const eventData = line.slice(6).trim();
+          if (eventData) {
+            try {
+              jsonData = JSON.parse(eventData);
+              break;
+            } catch (e) {
+              console.log("⚠️ Failed to parse SSE data line:", eventData);
+            }
+          }
+        }
+      }
+      
+      data = jsonData || { raw: text, error: "Could not parse SSE data" };
+    } else {
+      // Regular JSON parsing
+      data = JSON.parse(text);
+    }
+  } catch (parseError) {
+    console.log("❌ JSON Parse Error:", parseError.message);
+    data = { raw: text, parseError: parseError.message };
+  }
+
+  return data;
+}
+
 // SSE endpoint for streaming responses
 app.post("/proxy/stream", async (req, res) => {
   const { url, action, toolName, args = {}, headers = {}, rawPayload } = req.body;
@@ -302,16 +380,7 @@ app.post("/proxy/ai", async (req, res) => {
     if (mcpUrl) {
       try {
         console.log("Fetching tools from MCP server:", mcpUrl);
-        const toolsResponse = await fetch(`http://localhost:${PORT}/proxy`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            url: mcpUrl, 
-            action: "listTools" 
-          })
-        });
-        
-        const toolsData = await toolsResponse.json();
+        const toolsData = await makeInternalProxyCall(mcpUrl, "listTools", null, {});
         tools = toolsData.result?.tools || [];
         console.log("Found tools:", tools.length);
       } catch (toolsError) {
@@ -546,18 +615,7 @@ app.post("/proxy/ai/execute", async (req, res) => {
     for (const action of actions) {
       try {
         console.log("Executing action:", action.tool);
-        const actionResponse = await fetch(`http://localhost:${PORT}/proxy`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            url: mcpUrl, 
-            action: "callTool",
-            toolName: action.tool,
-            args: action.parameters
-          })
-        });
-        
-        const actionResult = await actionResponse.json();
+        const actionResult = await makeInternalProxyCall(mcpUrl, "callTool", action.tool, action.parameters);
         results.push({
           action: action.tool,
           success: !actionResult.error,
