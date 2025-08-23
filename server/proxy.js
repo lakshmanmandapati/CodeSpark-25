@@ -302,7 +302,7 @@ app.post("/proxy/ai", async (req, res) => {
     if (mcpUrl) {
       try {
         console.log("Fetching tools from MCP server:", mcpUrl);
-        const toolsResponse = await fetch("http://localhost:4000/proxy", {
+        const toolsResponse = await fetch(`http://localhost:${PORT}/proxy`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
@@ -546,7 +546,7 @@ app.post("/proxy/ai/execute", async (req, res) => {
     for (const action of actions) {
       try {
         console.log("Executing action:", action.tool);
-        const actionResponse = await fetch("http://localhost:4000/proxy", {
+        const actionResponse = await fetch(`http://localhost:${PORT}/proxy`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
