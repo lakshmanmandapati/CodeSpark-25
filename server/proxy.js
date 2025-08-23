@@ -450,19 +450,36 @@ app.post("/proxy/ai", async (req, res) => {
     
     // Parse response based on the effective provider
     let responseText;
-    switch (effectiveProvider) {
-      case "openai":
-      case "groq":
-        responseText = data.choices[0].message.content;
-        break;
-      case "gemini": // This case will always be used for parsing
-        responseText = data.candidates[0].content.parts[0].text;
-        break;
-      case "claude":
-        responseText = data.content[0].text;
-        break;
-      default:
-        return res.status(400).json({ error: `Unsupported effective provider: ${effectiveProvider}` });
+    try {
+      switch (effectiveProvider) {
+        case "openai":
+        case "groq":
+          responseText = data.choices?.[0]?.message?.content;
+          break;
+        case "gemini": // This case will always be used for parsing
+          responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          break;
+        case "claude":
+          responseText = data.content?.[0]?.text;
+          break;
+        default:
+          return res.status(400).json({ error: `Unsupported effective provider: ${effectiveProvider}` });
+      }
+
+      if (!responseText) {
+        console.error("Failed to parse AI response:", JSON.stringify(data, null, 2));
+        return res.status(500).json({ 
+          error: "AI response format is invalid", 
+          details: "Could not extract response text from API response" 
+        });
+      }
+    } catch (parseError) {
+      console.error("Error parsing AI response:", parseError);
+      console.error("Raw response data:", JSON.stringify(data, null, 2));
+      return res.status(500).json({ 
+        error: "Failed to parse AI response", 
+        details: parseError.message 
+      });
     }
 
     // Extract JSON from response
@@ -651,17 +668,34 @@ async function handleChatMode(provider, prompt, apiKeys, res) {
     
     // Parse response based on the effective provider
     let responseText;
-    switch (effectiveProvider) {
-      case "openai":
-      case "groq":
-        responseText = data.choices[0].message.content;
-        break;
-      case "gemini": // This case will always be used for parsing
-        responseText = data.candidates[0].content.parts[0].text;
-        break;
-      case "claude":
-        responseText = data.content[0].text;
-        break;
+    try {
+      switch (effectiveProvider) {
+        case "openai":
+        case "groq":
+          responseText = data.choices?.[0]?.message?.content;
+          break;
+        case "gemini": // This case will always be used for parsing
+          responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          break;
+        case "claude":
+          responseText = data.content?.[0]?.text;
+          break;
+      }
+
+      if (!responseText) {
+        console.error("Chat mode - Failed to parse AI response:", JSON.stringify(data, null, 2));
+        return res.status(500).json({ 
+          error: "AI response format is invalid", 
+          details: "Could not extract response text from API response" 
+        });
+      }
+    } catch (parseError) {
+      console.error("Chat mode - Error parsing AI response:", parseError);
+      console.error("Raw response data:", JSON.stringify(data, null, 2));
+      return res.status(500).json({ 
+        error: "Failed to parse AI response", 
+        details: parseError.message 
+      });
     }
 
     // Return chat response in a format compatible with the frontend
