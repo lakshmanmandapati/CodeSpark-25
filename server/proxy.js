@@ -447,6 +447,7 @@ app.post("/proxy/ai", async (req, res) => {
     }
 
     const data = await response.json();
+    console.log("🔍 Raw Gemini API Response:", JSON.stringify(data, null, 2));
     
     // Parse response based on the effective provider
     let responseText;
@@ -457,7 +458,27 @@ app.post("/proxy/ai", async (req, res) => {
           responseText = data.choices?.[0]?.message?.content;
           break;
         case "gemini": // This case will always be used for parsing
-          responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          // Check if response has error
+          if (data.error) {
+            console.error("Gemini API Error:", data.error);
+            return res.status(500).json({ 
+              error: `Gemini API Error: ${data.error.message || 'Unknown error'}`,
+              details: data.error
+            });
+          }
+          
+          // Handle different Gemini response formats
+          if (data.candidates && data.candidates.length > 0) {
+            const candidate = data.candidates[0];
+            if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+              responseText = candidate.content.parts[0].text;
+            } else if (candidate.finishReason === 'SAFETY') {
+              return res.status(400).json({ 
+                error: "Content blocked by safety filters",
+                details: "The request was blocked due to safety concerns. Try rephrasing your request."
+              });
+            }
+          }
           break;
         case "claude":
           responseText = data.content?.[0]?.text;
@@ -467,12 +488,14 @@ app.post("/proxy/ai", async (req, res) => {
       }
 
       if (!responseText) {
-        console.error("Failed to parse AI response:", JSON.stringify(data, null, 2));
+        console.error("❌ Failed to extract response text from:", JSON.stringify(data, null, 2));
         return res.status(500).json({ 
           error: "AI response format is invalid", 
-          details: "Could not extract response text from API response" 
+          details: `Could not extract response text. Response structure: ${Object.keys(data).join(', ')}`
         });
       }
+      
+      console.log("✅ Extracted response text:", responseText.substring(0, 200) + "...");
     } catch (parseError) {
       console.error("Error parsing AI response:", parseError);
       console.error("Raw response data:", JSON.stringify(data, null, 2));
