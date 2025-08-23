@@ -5,7 +5,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files first for better Docker layer caching
-COPY package*.json ./
+COPY ../package*.json ./
 
 # Install only production dependencies
 RUN npm ci --only=production && npm cache clean --force
