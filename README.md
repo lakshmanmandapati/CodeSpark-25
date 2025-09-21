@@ -5,6 +5,8 @@ Welcome to **Neuronodes** – an AI-powered automation platform that lets you co
 ---
 
 ## 🌐 Website
+![Uploading Screenshot 2025-09-21 at 12.19.14 PM.png…]()
+
 👉 [neuronodes.iharsha.space](https://neuronodes.iharsha.space)
 
 ---
