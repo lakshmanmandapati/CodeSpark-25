@@ -5,7 +5,7 @@ Welcome to **Neuronodes** – an AI-powered automation platform that lets you co
 ---
 
 ## 🌐 Website
-![Uploading Screenshot 2025-09-21 at 12.19.14 PM.png…]()
+<img width="1446" height="945" alt="NeuroNodes" src="https://github.com/user-attachments/assets/5503554f-df16-43da-b3b3-4b046a56ea02" />
 
 👉 [neuronodes.iharsha.space](https://neuronodes.iharsha.space)
 
